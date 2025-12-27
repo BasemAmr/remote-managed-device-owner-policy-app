@@ -203,10 +203,101 @@ const checkApprovalStatus = async (req, res) => {
     }
 };
 
+// Get URL Blacklist
+const getUrls = async (req, res) => {
+    try {
+        const deviceId = req.deviceId;
+        const result = await pool.query(
+            'SELECT * FROM url_blacklist WHERE device_id = $1',
+            [deviceId]
+        );
+        
+        // Map to match Android DTO if necessary, or send raw
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get URLs error:', error);
+        res.status(500).json({ error: 'Failed to fetch URLs' });
+    }
+};
+
+// Heartbeat
+const heartbeat = async (req, res) => {
+    try {
+        const deviceId = req.deviceId;
+        // Update last_seen timestamp
+        await pool.query(
+            'UPDATE devices SET last_seen = NOW() WHERE id = $1',
+            [deviceId]
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Heartbeat error:', error);
+        res.status(500).json({ error: 'Heartbeat failed' });
+    }
+};
+
+// Apply Policy
+const applyPolicy = async (req, res) => {
+    try {
+        const deviceId = req.deviceId;
+        const policy = req.body;
+        // Placeholder: Log the policy application (device-side action)
+        console.log('Policy applied by device:', deviceId, policy);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Apply policy error:', error);
+        res.status(500).json({ error: 'Failed to apply policy' });
+    }
+};
+
+// Log Violations Batch
+const logViolationsBatch = async (req, res) => {
+    try {
+        const deviceId = req.deviceId;
+        const violations = req.body;
+
+        if (!Array.isArray(violations)) {
+            return res.status(400).json({ error: 'Violations must be an array' });
+        }
+
+        const values = violations.map(v => `(${deviceId}, '${v.violation_type}', '${JSON.stringify(v.details)}')`).join(', ');
+        await pool.query(
+            `INSERT INTO violation_logs (device_id, violation_type, details) VALUES ${values}`,
+            []
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Log violations batch error:', error);
+        res.status(500).json({ error: 'Failed to log violations batch' });
+    }
+};
+
+// Get Access Requests
+const getAccessRequests = async (req, res) => {
+    try {
+        const deviceId = req.deviceId;
+        const result = await pool.query(
+            'SELECT * FROM approval_requests WHERE device_id = $1 ORDER BY created_at DESC',
+            [deviceId]
+        );
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get access requests error:', error);
+        res.status(500).json({ error: 'Failed to fetch access requests' });
+    }
+};
+
 module.exports = {
     registerDevice,
     getPolicies,
     reportViolation,
     submitRequest,
-    checkApprovalStatus
+    checkApprovalStatus,
+    getUrls,
+    heartbeat,
+    applyPolicy,
+    logViolationsBatch,
+    getAccessRequests
 };

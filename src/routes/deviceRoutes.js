@@ -6,7 +6,12 @@ const {
     getPolicies,
     reportViolation,
     submitRequest,
-    checkApprovalStatus
+    checkApprovalStatus,
+    getUrls,
+    heartbeat,
+    applyPolicy,
+    logViolationsBatch,
+    getAccessRequests
 } = require('../controllers/deviceController');
 
 // Public routes
@@ -14,8 +19,15 @@ router.post('/register', registerDevice);
 
 // Protected device routes
 router.get('/policies', authenticateDevice, getPolicies);
+router.post('/policies', authenticateDevice, applyPolicy);
 router.post('/violations', authenticateDevice, reportViolation);
+router.post('/violations/batch', authenticateDevice, logViolationsBatch);
 router.post('/requests', authenticateDevice, submitRequest);
+router.get('/requests', authenticateDevice, getAccessRequests);
 router.get('/requests/:request_id', authenticateDevice, checkApprovalStatus);
+
+// NEW ROUTES (Fixes 404 errors)
+router.get('/urls', authenticateDevice, getUrls);
+router.post('/heartbeat', authenticateDevice, heartbeat);
 
 module.exports = router;
