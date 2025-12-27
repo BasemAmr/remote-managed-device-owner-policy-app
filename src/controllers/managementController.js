@@ -20,6 +20,11 @@ const getInstalledApps = async (req, res) => {
     try {
         const { device_id } = req.params;
 
+        // Validate device_id format (UUID)
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(device_id)) {
+            return res.status(400).json({ error: 'Invalid device_id format' });
+        }
+
         const result = await pool.query(
             'SELECT * FROM app_policies WHERE device_id = $1 ORDER BY app_name',
             [device_id]
@@ -176,6 +181,11 @@ const updateSettings = async (req, res) => {
     try {
         const { device_id } = req.params;
         const { cooldown_hours, require_admin_approval, vpn_always_on, prevent_factory_reset } = req.body;
+
+        // Validate device_id format (UUID)
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(device_id)) {
+            return res.status(400).json({ error: 'Invalid device_id format' });
+        }
 
         const result = await pool.query(
             `UPDATE device_settings 
