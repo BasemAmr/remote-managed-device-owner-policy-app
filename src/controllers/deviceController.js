@@ -20,9 +20,12 @@ const registerDevice = async (req, res) => {
             // Return existing device token
             const device = existingDevice.rows[0];
             return res.json({
-                device_id: device.id,
-                device_token: device.device_token,
-                message: 'Device already registered'
+                success: true,
+                data: {
+                    device_id: device.id,
+                    device_token: device.device_token,
+                    policy_version: device.policy_version
+                }
             });
         }
 
@@ -57,10 +60,12 @@ const registerDevice = async (req, res) => {
         );
 
         res.status(201).json({
-            device_id: device.id,
-            device_token: fullToken,
-            policy_version: device.policy_version,
-            message: 'Device registered successfully'
+            success: true,
+            data: {
+                device_id: device.id,
+                device_token: fullToken,
+                policy_version: device.policy_version
+            }
         });
 
     } catch (error) {
@@ -100,16 +105,13 @@ const getPolicies = async (req, res) => {
             [deviceId]
         );
 
-        res.json({
-            policy_version: device.policy_version,
-            is_restricted: device.is_restricted,
-            policies: {
-                apps: apps.rows,
-                accessibility_services: accessibility.rows,
-                url_blacklist: urls.rows,
-                settings: settings.rows[0] || {}
-            }
-        });
+        res.json(
+            apps.rows.map(app => ({
+                package_name: app.package_name,
+                is_blocked: app.is_blocked,
+                is_uninstallable: app.is_uninstallable
+            }))
+        );
 
     } catch (error) {
         console.error('Get policies error:', error);
