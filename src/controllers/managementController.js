@@ -26,7 +26,12 @@ const getInstalledApps = async (req, res) => {
         }
 
         const result = await pool.query(
-            'SELECT * FROM app_policies WHERE device_id = $1 ORDER BY app_name',
+            `SELECT ia.package_name, ia.app_name, ia.version_code, ia.version_name, ia.created_at, ia.updated_at,
+                    ap.is_blocked, ap.is_uninstallable
+             FROM installed_apps ia
+             LEFT JOIN app_policies ap ON ia.device_id = ap.device_id AND ia.package_name = ap.package_name
+             WHERE ia.device_id = $1
+             ORDER BY ia.app_name`,
             [device_id]
         );
 

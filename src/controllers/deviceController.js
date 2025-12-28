@@ -289,6 +289,39 @@ const getAccessRequests = async (req, res) => {
     }
 };
 
+// Upload installed apps
+const uploadApps = async (req, res) => {
+    try {
+        const deviceId = req.deviceId;
+        const { apps } = req.body;
+
+        if (!Array.isArray(apps)) {
+            return res.status(400).json({ error: 'apps must be an array' });
+        }
+
+        // Upsert each app
+        for (const app of apps) {
+            const { package_name, app_name, version_code, version_name } = app;
+            await pool.query(
+                `INSERT INTO installed_apps (device_id, package_name, app_name, version_code, version_name)
+                 VALUES ($1, $2, $3, $4, $5)
+                 ON CONFLICT (device_id, package_name)
+                 DO UPDATE SET
+                   app_name = EXCLUDED.app_name,
+                   version_code = EXCLUDED.version_code,
+                   version_name = EXCLUDED.version_name,
+                   updated_at = NOW()`,
+                [deviceId, package_name, app_name || null, version_code || null, version_name || null]
+            );
+        }
+
+        res.json({ success: true, message: 'Apps uploaded successfully' });
+    } catch (error) {
+        console.error('Upload apps error:', error);
+        res.status(500).json({ error: 'Failed to upload apps' });
+    }
+};
+
 module.exports = {
     registerDevice,
     getPolicies,
@@ -299,5 +332,6 @@ module.exports = {
     heartbeat,
     applyPolicy,
     logViolationsBatch,
-    getAccessRequests
+    getAccessRequests,
+    uploadApps
 };

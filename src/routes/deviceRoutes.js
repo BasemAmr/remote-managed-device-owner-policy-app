@@ -11,7 +11,8 @@ const {
     heartbeat,
     applyPolicy,
     logViolationsBatch,
-    getAccessRequests
+    getAccessRequests,
+    uploadApps
 } = require('../controllers/deviceController');
 
 // Public routes
@@ -29,5 +30,6 @@ router.get('/requests/:request_id', authenticateDevice, checkApprovalStatus);
 // NEW ROUTES (Fixes 404 errors)
 router.get('/urls', authenticateDevice, getUrls);
 router.post('/heartbeat', authenticateDevice, heartbeat);
+router.post('/apps', authenticateDevice, uploadApps);
 
 module.exports = router;
