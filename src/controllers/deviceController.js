@@ -298,6 +298,14 @@ const uploadApps = async (req, res) => {
         if (!Array.isArray(apps)) {
             return res.status(400).json({ error: 'apps must be an array' });
         }
+        
+        // Verify device exists before bulk insert to avoid FK violation (500)
+        const deviceCheck = await pool.query('SELECT 1 FROM devices WHERE id = $1', [deviceId]);
+        if (deviceCheck.rowCount === 0) {
+            // Log warning but return success or 404 to avoid app crash loop
+            console.warn(`[UploadApps] Device ${deviceId} not found in DB. Skipping upload.`);
+            return res.status(404).json({ error: 'Device not active' });
+        }
 
         // Upsert each app
         for (const app of apps) {
