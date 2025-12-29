@@ -19,18 +19,28 @@ const registerDevice = async (req, res) => {
         if (existingDevice.rows.length > 0) {
             // Return existing device token
             const device = existingDevice.rows[0];
+
+            // GENERATE NEW FULL TOKEN (Fix for "Device not found" bug)
+            // The DB might contain an old token without deviceId, so we generate a fresh one
+            const fullToken = jwt.sign(
+                { deviceId: device.id, android_id },
+                process.env.DEVICE_TOKEN_SECRET,
+                { expiresIn: '365d' }
+            );
+
             return res.json({
                 success: true,
                 data: {
                     device_id: device.id,
-                    device_token: device.device_token,
+                    device_token: fullToken,
                     policy_version: device.policy_version
                 }
             });
         }
 
-        // Generate device token
-        const device_token = jwt.sign(
+        // Generate device token (Temporary for DB insert, though we should probably store the full one)
+        // We'll generate a fresh full one after getting the ID anyway.
+        const temp_token = jwt.sign(
             { android_id },
             process.env.DEVICE_TOKEN_SECRET,
             { expiresIn: '365d' }
@@ -41,7 +51,7 @@ const registerDevice = async (req, res) => {
             `INSERT INTO devices (device_name, android_id, device_token) 
        VALUES ($1, $2, $3) 
        RETURNING id, device_name, device_token, policy_version`,
-            [device_name, android_id, device_token]
+            [device_name, android_id, temp_token]
         );
 
         const device = result.rows[0];
@@ -57,6 +67,13 @@ const registerDevice = async (req, res) => {
             { deviceId: device.id, android_id },
             process.env.DEVICE_TOKEN_SECRET,
             { expiresIn: '365d' }
+        );
+
+        // Update DB with the full token so it's correct for future reference
+        // (Optional but good practice)
+        await pool.query(
+            'UPDATE devices SET device_token = $1 WHERE id = $2',
+            [fullToken, device.id]
         );
 
         res.status(201).json({
@@ -211,7 +228,7 @@ const getUrls = async (req, res) => {
             'SELECT * FROM url_blacklist WHERE device_id = $1',
             [deviceId]
         );
-        
+
         // Map to match Android DTO if necessary, or send raw
         res.json(result.rows);
     } catch (error) {
@@ -298,7 +315,7 @@ const uploadApps = async (req, res) => {
         if (!Array.isArray(apps)) {
             return res.status(400).json({ error: 'apps must be an array' });
         }
-        
+
         // Verify device exists before bulk insert to avoid FK violation (500)
         const deviceCheck = await pool.query('SELECT 1 FROM devices WHERE id = $1', [deviceId]);
         if (deviceCheck.rowCount === 0) {
