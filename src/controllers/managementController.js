@@ -26,7 +26,7 @@ const getInstalledApps = async (req, res) => {
         }
 
         const result = await pool.query(
-            `SELECT ia.package_name, ia.app_name, ia.version_code, ia.version_name, ia.created_at, ia.updated_at,
+            `SELECT ia.id, ia.package_name, ia.app_name, ia.version_code, ia.version_name, ia.created_at, ia.updated_at,
                     ap.is_blocked, ap.is_uninstallable
              FROM installed_apps ia
              LEFT JOIN app_policies ap ON ia.device_id = ap.device_id AND ia.package_name = ap.package_name
@@ -66,6 +66,27 @@ const setAppPolicy = async (req, res) => {
     } catch (error) {
         console.error('Set app policy error:', error);
         res.status(500).json({ error: 'Failed to update app policy' });
+    }
+};
+
+// Get blocked URLs for a device
+const getBlockedUrls = async (req, res) => {
+    try {
+        const { device_id } = req.query;
+
+        if (!device_id) {
+            return res.status(400).json({ error: 'device_id query parameter is required' });
+        }
+
+        const result = await pool.query(
+            'SELECT * FROM url_blacklist WHERE device_id = $1 ORDER BY created_at DESC',
+            [device_id]
+        );
+
+        res.json({ urls: result.rows });
+    } catch (error) {
+        console.error('Get blocked URLs error:', error);
+        res.status(500).json({ error: 'Failed to fetch blocked URLs' });
     }
 };
 
@@ -218,6 +239,7 @@ module.exports = {
     getDevices,
     getInstalledApps,
     setAppPolicy,
+    getBlockedUrls,
     addBlockedUrl,
     removeBlockedUrl,
     getPendingRequests,

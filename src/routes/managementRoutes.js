@@ -25,6 +25,7 @@ router.put('/devices/:device_id/settings', updateSettings);
 router.post('/policies/apps', setAppPolicy);
 
 // URL blacklist
+router.get('/policies/urls', getBlockedUrls);
 router.post('/policies/urls', addBlockedUrl);
 router.delete('/policies/urls/:id', removeBlockedUrl);
 

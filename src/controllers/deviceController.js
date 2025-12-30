@@ -348,6 +348,8 @@ const uploadApps = async (req, res) => {
         }
 
         // Upsert each app
+        const uploadedPackageNames = apps.map(app => app.package_name);
+
         for (const app of apps) {
             const { package_name, app_name, version_code, version_name } = app;
             await pool.query(
@@ -360,6 +362,14 @@ const uploadApps = async (req, res) => {
                    version_name = EXCLUDED.version_name,
                    updated_at = NOW()`,
                 [deviceId, package_name, app_name || null, version_code || null, version_name || null]
+            );
+        }
+
+        // Cleanup: Remove apps for this device that were not in the upload list
+        if (uploadedPackageNames.length > 0) {
+            await pool.query(
+                'DELETE FROM installed_apps WHERE device_id = $1 AND package_name != ALL($2)',
+                [deviceId, uploadedPackageNames]
             );
         }
 
