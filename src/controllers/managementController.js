@@ -235,6 +235,32 @@ const updateSettings = async (req, res) => {
     }
 };
 
+// Get device settings
+const getSettings = async (req, res) => {
+    try {
+        const { device_id } = req.params;
+
+        // Validate device_id format (UUID)
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(device_id)) {
+            return res.status(400).json({ error: 'Invalid device_id format' });
+        }
+
+        const result = await pool.query(
+            'SELECT * FROM device_settings WHERE device_id = $1',
+            [device_id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Settings not found for this device' });
+        }
+
+        res.json({ settings: result.rows[0] });
+    } catch (error) {
+        console.error('Get settings error:', error);
+        res.status(500).json({ error: 'Failed to fetch settings' });
+    }
+};
+
 module.exports = {
     getDevices,
     getInstalledApps,
@@ -245,5 +271,6 @@ module.exports = {
     getPendingRequests,
     resolveRequest,
     getViolations,
-    updateSettings
+    updateSettings,
+    getSettings
 };

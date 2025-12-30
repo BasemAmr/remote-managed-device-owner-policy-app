@@ -11,7 +11,8 @@ const {
     getPendingRequests,
     resolveRequest,
     getViolations,
-    updateSettings
+    updateSettings,
+    getSettings
 } = require('../controllers/managementController');
 
 // All management routes require admin authentication
@@ -20,6 +21,7 @@ router.use(authenticateAdmin);
 // Device management
 router.get('/devices', getDevices);
 router.get('/devices/:device_id/apps', getInstalledApps);
+router.get('/devices/:device_id/settings', getSettings);
 router.put('/devices/:device_id/settings', updateSettings);
 
 // App policies
