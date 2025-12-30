@@ -272,16 +272,14 @@ const applyPolicy = async (req, res) => {
 
         // Upsert the policy
         await pool.query(
-            `INSERT INTO app_policies (device_id, package_name, is_blocked, is_uninstallable, lock_accessibility, reason)
-             VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO app_policies (device_id, package_name, is_blocked, is_uninstallable)
+             VALUES ($1, $2, $3, $4)
              ON CONFLICT (device_id, package_name)
              DO UPDATE SET
                is_blocked = EXCLUDED.is_blocked,
                is_uninstallable = EXCLUDED.is_uninstallable,
-               lock_accessibility = EXCLUDED.lock_accessibility,
-               reason = EXCLUDED.reason,
                updated_at = NOW()`,
-            [deviceId, package_name, is_blocked || false, is_locked || false, lock_accessibility || false, reason || null]
+            [deviceId, package_name, is_blocked || false, is_locked || false]
         );
 
         console.log('Policy applied by device:', deviceId, package_name, { is_blocked, is_locked });
