@@ -5,6 +5,7 @@ const {
     getDevices,
     getInstalledApps,
     setAppPolicy,
+    getBlockedUrls,
     addBlockedUrl,
     removeBlockedUrl,
     getPendingRequests,
