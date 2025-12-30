@@ -122,13 +122,20 @@ const getPolicies = async (req, res) => {
             [deviceId]
         );
 
-        res.json(
-            apps.rows.map(app => ({
+        res.json({
+            success: true,
+            data: apps.rows.map(app => ({
                 package_name: app.package_name,
                 is_blocked: app.is_blocked,
-                is_uninstallable: app.is_uninstallable
+                is_locked: app.is_uninstallable,
+                // Add default fields expected by DTO to avoid nulls
+                lock_accessibility: false,
+                id: app.id,
+                device_id: deviceId,
+                created_at: new Date().getTime(),
+                updated_at: new Date().getTime()
             }))
-        );
+        });
 
     } catch (error) {
         console.error('Get policies error:', error);
