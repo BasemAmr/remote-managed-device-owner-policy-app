@@ -264,10 +264,28 @@ const heartbeat = async (req, res) => {
 const applyPolicy = async (req, res) => {
     try {
         const deviceId = req.deviceId;
-        const policy = req.body;
-        // Placeholder: Log the policy application (device-side action)
-        console.log('Policy applied by device:', deviceId, policy);
-        res.json({ success: true });
+        const { package_name, is_blocked, is_locked, lock_accessibility, reason } = req.body;
+
+        if (!package_name) {
+            return res.status(400).json({ error: 'package_name is required' });
+        }
+
+        // Upsert the policy
+        await pool.query(
+            `INSERT INTO app_policies (device_id, package_name, is_blocked, is_uninstallable, lock_accessibility, reason)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             ON CONFLICT (device_id, package_name)
+             DO UPDATE SET
+               is_blocked = EXCLUDED.is_blocked,
+               is_uninstallable = EXCLUDED.is_uninstallable,
+               lock_accessibility = EXCLUDED.lock_accessibility,
+               reason = EXCLUDED.reason,
+               updated_at = NOW()`,
+            [deviceId, package_name, is_blocked || false, is_locked || false, lock_accessibility || false, reason || null]
+        );
+
+        console.log('Policy applied by device:', deviceId, package_name, { is_blocked, is_locked });
+        res.json({ success: true, message: 'Policy applied successfully' });
     } catch (error) {
         console.error('Apply policy error:', error);
         res.status(500).json({ error: 'Failed to apply policy' });
