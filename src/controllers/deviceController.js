@@ -236,8 +236,16 @@ const getUrls = async (req, res) => {
             [deviceId]
         );
 
-        // Map to match Android DTO if necessary, or send raw
-        res.json(result.rows);
+        // Map to match Android DTO
+        // Android DTO expects: id, deviceId, pattern, description, createdAt, updatedAt
+        res.json(result.rows.map(row => ({
+            id: row.id,
+            device_id: row.device_id,
+            pattern: row.url_pattern, // Map url_pattern to pattern
+            description: row.description,
+            created_at: new Date(row.created_at).getTime(),
+            updated_at: new Date(row.updated_at || row.created_at).getTime()
+        })));
     } catch (error) {
         console.error('Get URLs error:', error);
         res.status(500).json({ error: 'Failed to fetch URLs' });
