@@ -12,7 +12,10 @@ const {
     resolveRequest,
     getViolations,
     updateSettings,
-    getSettings
+    getSettings,
+    getDeviceAccessibilityServices,
+    setAccessibilityServiceLock,
+    getDevicePermissions
 } = require('../controllers/managementController');
 
 // All management routes require admin authentication
@@ -38,5 +41,10 @@ router.put('/requests/:id', resolveRequest);
 
 // Violations
 router.get('/violations', getViolations);
+
+// Accessibility services
+router.get('/devices/:device_id/accessibility-services', getDeviceAccessibilityServices);
+router.post('/devices/:device_id/accessibility-services/lock', setAccessibilityServiceLock);
+router.get('/devices/:device_id/permissions', getDevicePermissions);
 
 module.exports = router;

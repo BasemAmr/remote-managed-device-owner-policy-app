@@ -261,6 +261,72 @@ const getSettings = async (req, res) => {
     }
 };
 
+// Get accessibility services for a device (admin view)
+const getDeviceAccessibilityServices = async (req, res) => {
+    try {
+        const { device_id } = req.params;
+        const result = await pool.query(
+            `SELECT s.*, p.is_locked, p.locked_by, p.locked_at
+             FROM accessibility_services s
+             LEFT JOIN accessibility_policies p ON s.device_id = p.device_id AND s.service_id = p.service_id
+             WHERE s.device_id = $1
+             ORDER BY s.label`,
+            [device_id]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get device accessibility services error:', error);
+        res.status(500).json({ error: 'Failed to fetch services' });
+    }
+};
+
+// Lock/unlock accessibility service
+const setAccessibilityServiceLock = async (req, res) => {
+    try {
+        const { device_id } = req.params;
+        const { service_id, is_locked } = req.body;
+        const adminUsername = req.user?.username || 'admin';
+
+        await pool.query(
+            `INSERT INTO accessibility_policies (device_id, service_id, is_locked, locked_by, locked_at)
+             VALUES ($1, $2, $3, $4, NOW())
+             ON CONFLICT (device_id, service_id)
+             DO UPDATE SET
+               is_locked = EXCLUDED.is_locked,
+               locked_by = EXCLUDED.locked_by,
+               locked_at = NOW(),
+               updated_at = NOW()`,
+            [device_id, service_id, is_locked, is_locked ? adminUsername : null]
+        );
+
+        // Increment policy version to trigger sync
+        await pool.query(
+            'UPDATE devices SET policy_version = policy_version + 1 WHERE id = $1',
+            [device_id]
+        );
+
+        res.json({ success: true, message: 'Accessibility service lock updated' });
+    } catch (error) {
+        console.error('Set accessibility lock error:', error);
+        res.status(500).json({ error: 'Failed to update lock' });
+    }
+};
+
+// Get device permissions
+const getDevicePermissions = async (req, res) => {
+    try {
+        const { device_id } = req.params;
+        const result = await pool.query(
+            'SELECT * FROM device_permissions WHERE device_id = $1 ORDER BY permission_name',
+            [device_id]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get device permissions error:', error);
+        res.status(500).json({ error: 'Failed to fetch permissions' });
+    }
+};
+
 module.exports = {
     getDevices,
     getInstalledApps,
@@ -272,5 +338,8 @@ module.exports = {
     resolveRequest,
     getViolations,
     updateSettings,
-    getSettings
+    getSettings,
+    getDeviceAccessibilityServices,
+    setAccessibilityServiceLock,
+    getDevicePermissions
 };

@@ -388,6 +388,134 @@ const uploadApps = async (req, res) => {
     }
 };
 
+// Get accessibility services for device
+const getAccessibilityServices = async (req, res) => {
+    try {
+        const deviceId = req.deviceId;
+        const result = await pool.query(
+            `SELECT s.*, p.is_locked 
+             FROM accessibility_services s
+             LEFT JOIN accessibility_policies p ON s.device_id = p.device_id AND s.service_id = p.service_id
+             WHERE s.device_id = $1
+             ORDER BY s.label`,
+            [deviceId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get accessibility services error:', error);
+        res.status(500).json({ error: 'Failed to fetch accessibility services' });
+    }
+};
+
+// Upload accessibility services (scan results)
+const uploadAccessibilityServices = async (req, res) => {
+    try {
+        const deviceId = req.deviceId;
+        const { services } = req.body;
+
+        if (!Array.isArray(services)) {
+            return res.status(400).json({ error: 'services must be an array' });
+        }
+
+        const uploadedServiceIds = services.map(s => s.service_id);
+
+        for (const service of services) {
+            await pool.query(
+                `INSERT INTO accessibility_services 
+                 (device_id, service_id, package_name, service_name, label, is_enabled)
+                 VALUES ($1, $2, $3, $4, $5, $6)
+                 ON CONFLICT (device_id, service_id)
+                 DO UPDATE SET
+                   package_name = EXCLUDED.package_name,
+                   service_name = EXCLUDED.service_name,
+                   label = EXCLUDED.label,
+                   is_enabled = EXCLUDED.is_enabled,
+                   updated_at = NOW()`,
+                [deviceId, service.service_id, service.package_name,
+                    service.service_name, service.label, service.is_enabled]
+            );
+        }
+
+        // Cleanup removed services
+        if (uploadedServiceIds.length > 0) {
+            await pool.query(
+                'DELETE FROM accessibility_services WHERE device_id = $1 AND service_id != ALL($2)',
+                [deviceId, uploadedServiceIds]
+            );
+        }
+
+        res.json({ success: true, message: 'Accessibility services synced' });
+    } catch (error) {
+        console.error('Upload accessibility services error:', error);
+        res.status(500).json({ error: 'Failed to upload accessibility services' });
+    }
+};
+
+// Get locked accessibility services
+const getLockedAccessibilityServices = async (req, res) => {
+    try {
+        const deviceId = req.deviceId;
+        const result = await pool.query(
+            'SELECT * FROM accessibility_policies WHERE device_id = $1 AND is_locked = true',
+            [deviceId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get locked services error:', error);
+        res.status(500).json({ error: 'Failed to fetch locked services' });
+    }
+};
+
+// Report accessibility service status
+const reportAccessibilityStatus = async (req, res) => {
+    try {
+        const deviceId = req.deviceId;
+        const { service_id, is_enabled } = req.body;
+
+        await pool.query(
+            `UPDATE accessibility_services 
+             SET is_enabled = $1, updated_at = NOW()
+             WHERE device_id = $2 AND service_id = $3`,
+            [is_enabled, deviceId, service_id]
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Report accessibility status error:', error);
+        res.status(500).json({ error: 'Failed to report status' });
+    }
+};
+
+// Upload permission status
+const uploadPermissions = async (req, res) => {
+    try {
+        const deviceId = req.deviceId;
+        const { permissions } = req.body;
+
+        if (!Array.isArray(permissions)) {
+            return res.status(400).json({ error: 'permissions must be an array' });
+        }
+
+        for (const perm of permissions) {
+            await pool.query(
+                `INSERT INTO device_permissions (device_id, permission_name, is_granted, last_checked)
+                 VALUES ($1, $2, $3, NOW())
+                 ON CONFLICT (device_id, permission_name)
+                 DO UPDATE SET
+                   is_granted = EXCLUDED.is_granted,
+                   last_checked = NOW(),
+                   updated_at = NOW()`,
+                [deviceId, perm.permission_name, perm.is_granted]
+            );
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Upload permissions error:', error);
+        res.status(500).json({ error: 'Failed to upload permissions' });
+    }
+};
+
 module.exports = {
     registerDevice,
     getPolicies,
@@ -399,5 +527,10 @@ module.exports = {
     applyPolicy,
     logViolationsBatch,
     getAccessRequests,
-    uploadApps
+    uploadApps,
+    getAccessibilityServices,
+    uploadAccessibilityServices,
+    getLockedAccessibilityServices,
+    reportAccessibilityStatus,
+    uploadPermissions
 };

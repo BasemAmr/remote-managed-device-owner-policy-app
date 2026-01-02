@@ -12,7 +12,12 @@ const {
     applyPolicy,
     logViolationsBatch,
     getAccessRequests,
-    uploadApps
+    uploadApps,
+    getAccessibilityServices,
+    uploadAccessibilityServices,
+    getLockedAccessibilityServices,
+    reportAccessibilityStatus,
+    uploadPermissions
 } = require('../controllers/deviceController');
 
 // Public routes
@@ -31,5 +36,12 @@ router.get('/requests/:request_id', authenticateDevice, checkApprovalStatus);
 router.get('/urls', authenticateDevice, getUrls);
 router.post('/heartbeat', authenticateDevice, heartbeat);
 router.post('/apps', authenticateDevice, uploadApps);
+
+// Accessibility service routes
+router.get('/accessibility-services', authenticateDevice, getAccessibilityServices);
+router.post('/accessibility-services', authenticateDevice, uploadAccessibilityServices);
+router.get('/accessibility-services/locked', authenticateDevice, getLockedAccessibilityServices);
+router.post('/accessibility-services/status', authenticateDevice, reportAccessibilityStatus);
+router.post('/permissions', authenticateDevice, uploadPermissions);
 
 module.exports = router;
