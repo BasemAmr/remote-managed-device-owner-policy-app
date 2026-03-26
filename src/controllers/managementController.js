@@ -27,7 +27,7 @@ const getInstalledApps = async (req, res) => {
 
         const result = await pool.query(
             `SELECT ia.id, ia.package_name, ia.app_name, ia.version_code, ia.version_name, ia.created_at, ia.updated_at,
-                    ap.is_blocked, ap.is_uninstallable
+                    ap.is_blocked, ap.is_uninstallable, ap.is_irrevocable
              FROM installed_apps ia
              LEFT JOIN app_policies ap ON ia.device_id = ap.device_id AND ia.package_name = ap.package_name
              WHERE ia.device_id = $1
@@ -64,6 +64,9 @@ const setAppPolicy = async (req, res) => {
             policy: result.rows[0]
         });
     } catch (error) {
+        if (error.message && error.message.includes('Red Shield')) {
+            return res.status(403).json({ error: 'Cannot update: app policy is protected by Red Shield' });
+        }
         console.error('Set app policy error:', error);
         res.status(500).json({ error: 'Failed to update app policy' });
     }
@@ -119,6 +122,9 @@ const removeBlockedUrl = async (req, res) => {
 
         res.json({ message: 'URL removed from blacklist' });
     } catch (error) {
+        if (error.message && error.message.includes('Red Shield')) {
+            return res.status(403).json({ error: 'Cannot delete: policy is protected by Red Shield' });
+        }
         console.error('Remove URL error:', error);
         res.status(500).json({ error: 'Failed to remove URL' });
     }
@@ -266,7 +272,7 @@ const getDeviceAccessibilityServices = async (req, res) => {
     try {
         const { device_id } = req.params;
         const result = await pool.query(
-            `SELECT s.*, p.is_locked, p.locked_by, p.locked_at
+            `SELECT s.*, p.is_locked, p.locked_by, p.locked_at, p.is_irrevocable
              FROM accessibility_services s
              LEFT JOIN accessibility_policies p ON s.device_id = p.device_id AND s.service_id = p.service_id
              WHERE s.device_id = $1
@@ -307,6 +313,9 @@ const setAccessibilityServiceLock = async (req, res) => {
 
         res.json({ success: true, message: 'Accessibility service lock updated' });
     } catch (error) {
+        if (error.message && error.message.includes('Red Shield')) {
+            return res.status(403).json({ error: 'Cannot update: accessibility lock is protected by Red Shield' });
+        }
         console.error('Set accessibility lock error:', error);
         res.status(500).json({ error: 'Failed to update lock' });
     }
@@ -327,13 +336,58 @@ const getDevicePermissions = async (req, res) => {
     }
 };
 
+// Activate Red Shield (Irrevocable)
+const setAppPolicyRedShield = async (req, res) => {
+    try {
+        const { device_id, package_name } = req.body;
+        await pool.query(
+            `UPDATE app_policies SET is_irrevocable = TRUE WHERE device_id = $1 AND package_name = $2`,
+            [device_id, package_name]
+        );
+        res.json({ success: true, message: 'Red Shield activated for app update' });
+    } catch (error) {
+        console.error('Set red shield app policy error:', error);
+        res.status(500).json({ error: 'Failed to activate Red Shield' });
+    }
+};
+
+const setBlockedUrlRedShield = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await pool.query(
+            `UPDATE url_blacklist SET is_irrevocable = TRUE WHERE id = $1`,
+            [id]
+        );
+        res.json({ success: true, message: 'Red Shield activated for URL update' });
+    } catch (error) {
+        console.error('Set red shield URL policy error:', error);
+        res.status(500).json({ error: 'Failed to activate Red Shield' });
+    }
+};
+
+const setAccessibilityRedShield = async (req, res) => {
+    try {
+        const { device_id, service_id } = req.body;
+        await pool.query(
+            `UPDATE accessibility_policies SET is_irrevocable = TRUE WHERE device_id = $1 AND service_id = $2`,
+            [device_id, service_id]
+        );
+        res.json({ success: true, message: 'Red Shield activated for accessibility update' });
+    } catch (error) {
+        console.error('Set red shield accessibility policy error:', error);
+        res.status(500).json({ error: 'Failed to activate Red Shield' });
+    }
+};
+
 module.exports = {
     getDevices,
     getInstalledApps,
     setAppPolicy,
+    setAppPolicyRedShield,
     getBlockedUrls,
     addBlockedUrl,
     removeBlockedUrl,
+    setBlockedUrlRedShield,
     getPendingRequests,
     resolveRequest,
     getViolations,
@@ -341,5 +395,6 @@ module.exports = {
     getSettings,
     getDeviceAccessibilityServices,
     setAccessibilityServiceLock,
+    setAccessibilityRedShield,
     getDevicePermissions
 };
